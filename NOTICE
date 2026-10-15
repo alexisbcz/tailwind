@@ -1,0 +1,3 @@
+This project includes code ported from or bundled with the following projects.
+
+- Tailwind CSS 4.3.0, embedded in dist/: MIT License. Copyright (c) Tailwind Labs, Inc. See dist/LICENSE.

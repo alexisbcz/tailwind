@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@source "./extra";
+@source not "./src/skip.txt";
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-brand: var(--brand);
+}
+
+@utility content-auto {
+  content-visibility: auto;
+}
+
+.card {
+  @apply rounded-lg border p-4 shadow-sm;
+}
