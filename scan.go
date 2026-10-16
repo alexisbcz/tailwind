@@ -195,7 +195,9 @@ var ignoredFiles = map[string]bool{
 	"Cargo.lock": true, "composer.lock": true, "Gemfile.lock": true,
 }
 
-const maxFileSize = 4 << 20
+// maxFileSize skips files too large to be sources (data dumps, bundles).
+// Generated pages can be a few megabytes, so the limit is generous.
+const maxFileSize = 32 << 20
 
 // sourceSet is the resolved list of include and exclude globs.
 type sourceSet struct {
@@ -301,7 +303,11 @@ func readCandidates(files []string) ([]string, error) {
 			continue
 		}
 		var found []string
-		if strings.EqualFold(filepath.Ext(f), ".css") {
+		ext := strings.ToLower(filepath.Ext(f))
+		if markupExts[ext] {
+			b = decodeEntities(b)
+		}
+		if ext == ".css" {
 			found = extractVarUsages(b)
 		} else {
 			found = append(ExtractVariables(b), Extract(b)...)
@@ -448,4 +454,27 @@ func (r gitignoreRule) matchesParent(p string) bool {
 		}
 	}
 	return false
+}
+
+// markupExts are the files whose attributes may hold escaped class names:
+// rendered HTML (libhtml, html/template) writes [&_svg]:size-4 as
+// [&amp;_svg]:size-4 and has-[>svg] as has-[&gt;svg].
+var markupExts = map[string]bool{".html": true, ".htm": true, ".xhtml": true, ".svg": true, ".xml": true}
+
+// entities are the character references that HTML renderers use in
+// attribute values, with the characters they stand for.
+var entities = strings.NewReplacer(
+	"&amp;", "&", "&lt;", "<", "&gt;", ">",
+	"&quot;", "\"", "&#34;", "\"", "&#x22;", "\"",
+	"&#39;", "'", "&#x27;", "'", "&apos;", "'",
+)
+
+// decodeEntities decodes the character references of entities, so that
+// candidates in rendered markup are seen as written. The official CLI
+// reads such files verbatim and misses those classes.
+func decodeEntities(b []byte) []byte {
+	if bytes.IndexByte(b, '&') < 0 {
+		return b
+	}
+	return []byte(entities.Replace(string(b)))
 }

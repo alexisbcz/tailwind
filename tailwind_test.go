@@ -200,3 +200,22 @@ func BenchmarkBuildProject(b *testing.B) {
 		}
 	}
 }
+
+// Rendered HTML escapes & < > in attributes: classes like [&_svg]:size-4
+// and has-[>svg]:px-3 must still be generated.
+func TestEscapedMarkup(t *testing.T) {
+	dir := t.TempDir()
+	html := `<button class="[&amp;_svg]:size-4 has-[&gt;svg]:px-3 [&amp;_svg:not([class*=&#39;size-&#39;])]:size-5">x</button>`
+	if err := os.WriteFile(dir+"/page.html", []byte(html), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := Build(Options{CSS: `@import "tailwindcss" source(none); @source "./page.html";`, Dir: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`.\[\&_svg\]\:size-4`, `.has-\[\>svg\]\:px-3`, `size-\'\]\)\]\:size-5`} {
+		if !strings.Contains(res.CSS, want) {
+			t.Errorf("missing %s in:\n%s", want, res.CSS)
+		}
+	}
+}
